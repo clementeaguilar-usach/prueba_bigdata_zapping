@@ -20,17 +20,17 @@ with left:
     st.subheader('MAU y suscriptores')
     fig = go.Figure()
     fig.add_scatter(x=tot['mes'], y=tot['suscriptores'], name='Suscriptores al cierre', mode='lines+markers',
-                    line=dict(color=charts.slot(1), width=2), marker=dict(size=8),
+                    line=dict(color=charts.context(), width=2), marker=dict(size=8),
                     hovertemplate='Suscriptores: %{y:,.0f}<extra></extra>')
     fig.add_scatter(x=tot['mes'], y=tot['mau'], name='MAU (vieron en 30 días)', mode='lines+markers',
-                    line=dict(color=charts.slot(2), width=2), marker=dict(size=8),
+                    line=dict(color=charts.highlight(), width=2), marker=dict(size=8),
                     hovertemplate='MAU: %{y:,.0f}<extra></extra>')
     charts.layout(fig, height=340, y_title='Usuarios')
     charts.show(fig, tot[['month', 'suscriptores', 'mau']], key='eng_mau')
 with right:
     st.subheader('MAU / suscriptores')
     fig = go.Figure(go.Scatter(x=tot['mes'], y=tot['ratio'], mode='lines+markers',
-                               line=dict(color=charts.slot(1), width=2), marker=dict(size=8),
+                               line=dict(color=charts.highlight(), width=2), marker=dict(size=8),
                                hovertemplate='%{y:.1%}<extra></extra>'))
     charts.layout(fig, height=340, y_title='Fracción que vio contenido', y_format='.0%', legend=False)
     fig.update_yaxes(range=[0, 1])
@@ -42,7 +42,7 @@ dd = metrics.engagement_daily(f)
 left, right = st.columns(2)
 with left:
     st.markdown('**Activos con consumo en los últimos 30 días**')
-    fig = go.Figure(go.Scatter(x=dd['d'], y=dd['ratio'], mode='lines', line=dict(color=charts.slot(1), width=2),
+    fig = go.Figure(go.Scatter(x=dd['d'], y=dd['ratio'], mode='lines', line=dict(color=charts.highlight(), width=2),
                                customdata=dd['activos'],
                                hovertemplate='%{y:.1%} de %{customdata:,.0f} activos<extra></extra>'))
     charts.daily_axis(charts.layout(fig, height=280, y_title='Fracción de activos', y_format='.0%', legend=False))
@@ -53,7 +53,7 @@ with left:
 with right:
     st.markdown('**Horas de consumo en 30 días (mediana de quienes ven)**')
     fig = go.Figure(go.Scatter(x=dd['d'], y=dd['horas_mediana'], mode='lines',
-                               line=dict(color=charts.slot(1), width=2),
+                               line=dict(color=charts.highlight(), width=2),
                                hovertemplate='%{y:,.1f} horas<extra></extra>'))
     charts.daily_axis(charts.layout(fig, height=280, y_title='Horas', legend=False))
     charts.mark_events(fig, data.eventos_clave(), f.start, f.end)
@@ -69,7 +69,7 @@ mat = by.pivot(index='segment', columns='month', values='ratio').reindex(order)
 subs = by.pivot(index='segment', columns='month', values='suscriptores').reindex(order)
 fig = go.Figure(go.Heatmap(
     z=mat.values, x=[data.month_short(m) for m in mat.columns], y=mat.index, zmin=0, zmax=1,
-    colorscale=[[i / (len(charts.SEQUENTIAL_BLUE) - 1), c] for i, c in enumerate(charts.SEQUENTIAL_BLUE)],
+    colorscale=charts.sequential_scale(),
     text=[[charts.fmt_pct(v, 0) if v == v else '' for v in row] for row in mat.values], texttemplate='%{text}',
     customdata=subs.values, xgap=2, ygap=2,
     hovertemplate='%{y} · %{x}<br>%{z:.1%} de %{customdata:,.0f} suscriptores<extra></extra>',

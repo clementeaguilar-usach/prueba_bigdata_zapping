@@ -54,7 +54,7 @@ else:
     for i, (country, cur) in enumerate(groups):
         sub = loc[(loc['country_iso'] == country) & (loc['currency'] == cur)]
         fig = go.Figure(go.Scatter(x=sub['month'].map(data.month_short), y=sub['mrr_local'], mode='lines+markers',
-                                   line=dict(color=charts.slot(1), width=2), marker=dict(size=8),
+                                   line=dict(color=charts.highlight(), width=2), marker=dict(size=8),
                                    hovertemplate=f'{cur} %{{y:,.0f}}<extra></extra>'))
         charts.layout(fig, height=260, y_title=cur, legend=False)
         ticks = sub['month'].map(data.month_short).tolist()
@@ -66,7 +66,7 @@ else:
 # ------------------------------------------------------------------------------------------
 st.subheader('MRR diario')
 dd = metrics.daily(f)
-fig = go.Figure(go.Scatter(x=dd['d'], y=dd['mrr'], mode='lines', line=dict(color=charts.slot(1), width=2),
+fig = go.Figure(go.Scatter(x=dd['d'], y=dd['mrr'], mode='lines', line=dict(color=charts.highlight(), width=2),
                            hovertemplate='US$ %{y:,.0f}<extra></extra>'))
 charts.daily_axis(charts.layout(fig, height=280, y_title='MRR (USD)', legend=False))
 charts.mark_events(fig, data.eventos_clave(), f.start, f.end)

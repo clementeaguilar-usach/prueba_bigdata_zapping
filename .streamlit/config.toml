@@ -1,0 +1,35 @@
+# Tema del dashboard, según la guía de marca de Zapping (brand.zapping.com).
+# Streamlit lo lee desde la carpeta donde se ejecuta `streamlit run` (la raíz del proyecto, también en Community Cloud).
+
+[theme]
+base = "dark"
+# Expresión binaria: negro de marca + Zapink Pulse + blanco
+backgroundColor = "#040405"
+primaryColor = "#e90068"
+textColor = "#ffffff"
+linkColor = "#e90068"
+secondaryBackgroundColor = "#111113"
+# Bordes y divisores con opacidad de blanco, sin gris
+borderColor = "rgba(255, 255, 255, 0.1)"
+dataframeBorderColor = "rgba(255, 255, 255, 0.1)"
+showSidebarBorder = true
+# Poppins es el respaldo que declara la marca para ZappingFont. No hay peso Regular: Medium (500) es el cuerpo
+# y Bold (700) los títulos.
+font = "Poppins:https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,500;0,600;0,700;0,900;1,500;1,700;1,900&display=swap"
+baseFontWeight = 500
+headingFontWeights = [700, 700, 700, 600, 600, 600]
+baseRadius = "12px"
+buttonRadius = "full"
+# Colores de estado de la paleta funcional de la marca (alertas, deltas de métricas)
+redColor = "#ef4444"
+greenColor = "#10b981"
+yellowColor = "#f59e0b"
+blueColor = "#3b82f6"
+violetColor = "#b333f2"
+chartCategoricalColors = ["#8156ff", "#dba6ff", "#c70091", "#e6e6e6", "#f842ba", "#9f2cd7", "#bab1ff", "#828282"]
+chartSequentialColors = ["#1f0411", "#36031b", "#4c0324", "#63022e", "#790238", "#8f0241", "#a6014b", "#bc0155",
+                         "#d3005e", "#e90068"]
+
+[theme.sidebar]
+backgroundColor = "#08080a"
+secondaryBackgroundColor = "#19191c"

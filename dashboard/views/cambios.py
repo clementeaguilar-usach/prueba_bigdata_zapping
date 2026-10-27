@@ -46,13 +46,13 @@ with left:
 with right:
     st.subheader('Impacto neto en MRR')
     net = c.assign(mes=c['date'].dt.strftime('%Y-%m')).groupby('mes')['delta_mrr_usd'].sum().reset_index()
-    pos, neg = charts.slot(1), charts.CATEGORICAL[charts.mode()][7]  # par divergente azul / rojo
+    pos, neg = charts.slot(1), charts.slot(3)  # mismos colores que upgrade / downgrade
     fig = go.Figure(go.Bar(x=net['mes'].map(data.month_short), y=net['delta_mrr_usd'], marker_line_width=0,
                            marker_color=np.where(net['delta_mrr_usd'] >= 0, pos, neg),
                            hovertemplate='US$ %{y:,.0f}<extra></extra>'))
     charts.layout(fig, height=360, y_title='Δ MRR (USD)', legend=False)
     charts.show(fig, net.rename(columns={'delta_mrr_usd': 'delta_mrr_usd_neto'}), key='cambios_mrr',
-                caption='Suma de la diferencia de MRR entre el plan nuevo y el anterior. Azul: el MRR sube; rojo: baja.')
+                caption='Suma de la diferencia de MRR entre el plan nuevo y el anterior. Índigo: el MRR sube; fucsia: baja.')
 
 # ------------------------------------------------------------------------------------------
 st.subheader('Desde qué plan hacia cuál')
@@ -62,23 +62,16 @@ pairs = (c.groupby(['prev_package_name', 'new_package_name', 'tipo']).size().ren
 src_nodes = list(dict.fromkeys(pairs['prev_package_name']))
 dst_nodes = list(dict.fromkeys(pairs['new_package_name']))
 labels = [f'{p} (antes)' for p in src_nodes] + [f'{p} (después)' for p in dst_nodes]
-
-
-def rgba(hex_color, alpha=0.4):
-    h = hex_color.lstrip('#')
-    return f'rgba({int(h[0:2], 16)},{int(h[2:4], 16)},{int(h[4:6], 16)},{alpha})'
-
-
 fig = go.Figure(go.Sankey(
     node=dict(label=labels, pad=14, thickness=12, color=charts.ink('axis'), line=dict(width=0)),
     textfont=charts.sankey_font(),
     link=dict(source=[src_nodes.index(p) for p in pairs['prev_package_name']],
               target=[len(src_nodes) + dst_nodes.index(p) for p in pairs['new_package_name']],
-              value=pairs['n'], color=[rgba(charts.tipo_colors()[t]) for t in pairs['tipo']],
+              value=pairs['n'], color=[charts.rgba(charts.tipo_colors()[t], 0.4) for t in pairs['tipo']],
               customdata=[charts.TIPO_LABELS[t] for t in pairs['tipo']],
               hovertemplate='%{source.label} → %{target.label}<br>%{customdata}: %{value:,.0f}<extra></extra>')))
 fig.update_layout(height=460, margin=dict(l=8, r=8, t=8, b=8), separators=',.',
-                  font=dict(family='system-ui, -apple-system, "Segoe UI", sans-serif'))
+                  font=dict(family=charts.FONT))
 charts.show(fig, pairs.rename(columns={'prev_package_name': 'plan_anterior', 'new_package_name': 'plan_nuevo',
                                        'n': 'cambios'}), key='cambios_sankey')
 

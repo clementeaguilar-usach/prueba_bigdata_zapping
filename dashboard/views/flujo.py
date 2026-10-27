@@ -54,7 +54,7 @@ charts.show(fig, counts.pivot(index='periodo', columns='clase', values='eventos'
 # ------------------------------------------------------------------------------------------
 st.subheader('Usuarios activos')
 dd = metrics.daily(f)
-fig = go.Figure(go.Scatter(x=dd['d'], y=dd['activos'], mode='lines', line=dict(color=charts.slot(1), width=2),
+fig = go.Figure(go.Scatter(x=dd['d'], y=dd['activos'], mode='lines', line=dict(color=charts.highlight(), width=2),
                            hovertemplate='%{y:,.0f} usuarios<extra></extra>'))
 charts.daily_axis(charts.layout(fig, height=260, y_title='Usuarios', legend=False))
 charts.mark_events(fig, data.eventos_clave(), f.start, f.end)

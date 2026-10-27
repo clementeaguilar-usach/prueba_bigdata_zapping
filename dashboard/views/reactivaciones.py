@@ -42,7 +42,7 @@ with left:
     hist = pd.Series(binned).value_counts().sort_index()
     labels = [str(d) if d <= cap else f'>{cap}' for d in hist.index]
     fig = go.Figure(go.Bar(
-        x=hist.index, y=hist.values, marker_line_width=0, marker_color=charts.slot(1),
+        x=hist.index, y=hist.values, marker_line_width=0, marker_color=charts.highlight(),
         customdata=labels, hovertemplate='%{customdata} días: %{y:,.0f}<extra></extra>'))
     charts.layout(fig, height=340, y_title='Reactivaciones', x_title='Días sin plan', legend=False,
                   hovermode='closest')
@@ -59,7 +59,7 @@ with right:
         ciclos = por_usuario.clip(upper=5).value_counts().sort_index()
         etiquetas = [str(k) if k < 5 else '5+' for k in ciclos.index]
         fig = go.Figure(go.Bar(
-            x=etiquetas, y=ciclos.values, marker_line_width=0, marker_color=charts.slot(1),
+            x=etiquetas, y=ciclos.values, marker_line_width=0, marker_color=charts.highlight(),
             hovertemplate='%{x} reactivaciones: %{y:,.0f} usuarios<extra></extra>'))
         charts.layout(fig, height=340, y_title='Usuarios', x_title='Veces que salió y volvió', legend=False,
                       hovermode='closest')
@@ -72,7 +72,7 @@ st.subheader('Reactivaciones por mes')
 ORIGEN = {'dentro_ventana': 'Último plan observado', 'previo_ventana': 'Historial previo a 2026'}
 g = (r.assign(mes=r['date'].dt.strftime('%Y-%m'), origen_lbl=r['origen'].map(ORIGEN))
      .groupby(['mes', 'origen_lbl']).size().rename('reactivaciones').reset_index())
-color = {'Último plan observado': charts.slot(1), 'Historial previo a 2026': charts.slot(3)}
+color = {'Último plan observado': charts.slot(1), 'Historial previo a 2026': charts.slot(2)}
 fig = go.Figure()
 for lbl in ORIGEN.values():
     sub = g[g['origen_lbl'] == lbl]
@@ -88,7 +88,8 @@ charts.show(fig, g.pivot(index='mes', columns='origen_lbl', values='reactivacion
 
 # ------------------------------------------------------------------------------------------
 st.subheader('Con qué plan se fueron y con cuál volvieron')
-st.caption('Reactivaciones dentro de la ventana. Se muestran los 12 pares más frecuentes; en gris, los que vuelven al mismo plan.')
+st.caption('Reactivaciones dentro de la ventana. Se muestran los 12 pares más frecuentes: en rosa, los que cambian '
+           'de plan; en gris, los que vuelven al mismo.')
 pairs = (dentro.groupby(['last_package_name', 'new_package_name']).size().rename('n').reset_index()
          .sort_values('n', ascending=False).head(12))
 if pairs.empty:
@@ -98,7 +99,7 @@ else:
     dst_nodes = list(dict.fromkeys(pairs['new_package_name']))
     labels = [f'{p} (antes)' for p in src_nodes] + [f'{p} (ahora)' for p in dst_nodes]
     same = pairs['last_package_name'] == pairs['new_package_name']
-    link_color = np.where(same, 'rgba(137,135,129,0.35)', 'rgba(42,120,214,0.35)')
+    link_color = np.where(same, charts.rgba(charts.context(), 0.45), charts.rgba(charts.highlight(), 0.45))
     fig = go.Figure(go.Sankey(
         node=dict(label=labels, pad=14, thickness=12, color=charts.ink('axis'), line=dict(width=0)),
         textfont=charts.sankey_font(),
@@ -107,7 +108,7 @@ else:
                   value=pairs['n'], color=link_color,
                   hovertemplate='%{source.label} → %{target.label}: %{value:,.0f}<extra></extra>')))
     fig.update_layout(height=420, margin=dict(l=8, r=8, t=8, b=8), separators=',.',
-                      font=dict(family='system-ui, -apple-system, "Segoe UI", sans-serif'))
+                      font=dict(family=charts.FONT))
     charts.show(fig, pairs.rename(columns={'last_package_name': 'plan_anterior', 'new_package_name': 'plan_nuevo',
                                            'n': 'reactivaciones'}), key='react_sankey')
 

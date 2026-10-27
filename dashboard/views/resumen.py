@@ -72,7 +72,7 @@ left, right = st.columns(2)
 with left:
     st.markdown('**MRR diario**')
     fig = go.Figure(go.Scatter(x=dd['d'], y=dd['mrr'], mode='lines', name='MRR',
-                               line=dict(color=charts.slot(1), width=2),
+                               line=dict(color=charts.highlight(), width=2),
                                hovertemplate='US$ %{y:,.0f}<extra></extra>'))
     charts.daily_axis(charts.layout(fig, height=320, y_title='MRR (USD)', legend=False))
     charts.mark_events(fig, events, f.start, f.end)
@@ -80,7 +80,7 @@ with left:
 with right:
     st.markdown('**Usuarios activos**')
     fig = go.Figure(go.Scatter(x=dd['d'], y=dd['activos'], mode='lines', name='Usuarios activos',
-                               line=dict(color=charts.slot(1), width=2),
+                               line=dict(color=charts.highlight(), width=2),
                                hovertemplate='%{y:,.0f} usuarios<extra></extra>'))
     charts.daily_axis(charts.layout(fig, height=320, y_title='Usuarios', legend=False))
     charts.mark_events(fig, events, f.start, f.end)

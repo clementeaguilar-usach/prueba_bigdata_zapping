@@ -14,6 +14,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from core import data  # noqa: E402
 
 st.set_page_config(page_title='Métricas de negocio · Zapping', layout='wide')
+# Lo que el tema de .streamlit/config.toml no cubre: títulos en Bold Italic (la itálica es la voz de la marca)
+# con tracking ajustado, cifras de los KPI en Bold y texto sobre Zapink en Bold (mínimo de la marca sobre rosa).
+st.html('''<style>
+h1, h2, h3 { font-style: italic; letter-spacing: -0.02em; }
+[data-testid="stMetricValue"] { font-weight: 700; letter-spacing: -0.02em; }
+[data-baseweb="tag"], [data-testid="stBaseButton-primary"] { font-weight: 700; }
+code { color: rgba(255, 255, 255, 0.7); }
+</style>''')
 
 if not (data.OUT / 'user_day.parquet').exists():
     st.error('No se encontró `outputs/user_day.parquet`. Ejecuta primero el notebook `prueba_big_data.ipynb`.')

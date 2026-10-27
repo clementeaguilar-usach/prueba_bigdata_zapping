@@ -17,7 +17,7 @@ else:
     tot = ten.groupby('month')['usuarios'].transform('sum')
     ten['valor'] = ten['usuarios'] / tot if as_pct else ten['usuarios']
     fig = go.Figure()
-    for bucket, color in zip(data.TENURE_ORDER, charts.ORDINAL_BLUE):
+    for bucket, color in zip(data.TENURE_ORDER, charts.ordinal()):
         sub = ten[ten['tenure_bucket'] == bucket]
         if not sub.empty:
             fig.add_bar(x=sub['month'].map(data.month_short), y=sub['valor'], name=bucket, marker_color=color,
@@ -45,7 +45,7 @@ if ch.empty:
     charts.empty_state('No hay ventanas completas para este horizonte.')
 else:
     segs = ['Total'] if dim == 'total' else [v for v in data.dim_values(dim) if v in set(ch['segment'])]
-    cmap = {'Total': charts.slot(1)} if dim == 'total' else charts.color_map(data.dim_values(dim))
+    cmap = {'Total': charts.highlight()} if dim == 'total' else charts.color_map(data.dim_values(dim))
     fig = go.Figure()
     for seg in segs:
         sub = ch[ch['segment'] == seg].sort_values('cohort_month')
@@ -92,7 +92,7 @@ z = ret[ks].values
 fig = go.Figure(go.Heatmap(
     z=z, x=[f'Mes {k}' for k in ks], y=[f'{data.month_label(i)} ({n:,})'.replace(',', '.') for i, n in
                                          zip(ret.index, ret['usuarios_nuevos'])],
-    zmin=0, zmax=1, colorscale=[[i / (len(charts.SEQUENTIAL_BLUE) - 1), c] for i, c in enumerate(charts.SEQUENTIAL_BLUE)],
+    zmin=0, zmax=1, colorscale=charts.sequential_scale(),
     text=[[charts.fmt_pct(v, 0) if v == v else '' for v in row] for row in z], texttemplate='%{text}',
     xgap=2, ygap=2, hovertemplate='%{y} · %{x}: %{z:.1%}<extra></extra>',
     colorbar=dict(tickformat='.0%', thickness=10)))
