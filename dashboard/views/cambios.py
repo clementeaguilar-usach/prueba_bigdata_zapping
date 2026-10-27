@@ -6,7 +6,7 @@ from core import charts, data
 
 f = data.get_filters()
 st.title('Cambios de plan')
-st.caption('Actividad 3.3 · ' + f.describe())
+f.subtitle('Actividad 3.3')
 
 c_all = data.apply_event_filters(data.cambios_plan(), f)
 c = c_all[~c_all['migracion_masiva']] if f.excluir_masivos else c_all
@@ -15,10 +15,17 @@ if c.empty:
     st.stop()
 
 TIPOS = ['upgrade', 'downgrade', 'lateral', 'reajuste_precio']
+TIPO_HELP = {
+    'upgrade': 'El plan nuevo tiene un precio de lista mensual (USD) mayor que el anterior.',
+    'downgrade': 'El plan nuevo tiene un precio de lista mensual (USD) menor que el anterior.',
+    'lateral': 'Plan distinto con el mismo precio de lista (p.ej. Pro → ZAPPING PRO V2).',
+    'reajuste_precio': 'El plan conserva su nombre pero cambia de versión y de precio en el catálogo (p.ej. Zapping '
+                       'Full de 18.900 a 19.900 CLP). Es una decisión de Zapping, no del usuario.',
+}
 counts = c['tipo'].value_counts()
 cols = st.columns(5)
 for col, tipo in zip(cols, TIPOS):
-    col.metric(charts.TIPO_LABELS[tipo], charts.fmt_int(counts.get(tipo, 0)), border=True)
+    col.metric(charts.TIPO_LABELS[tipo], charts.fmt_int(counts.get(tipo, 0)), border=True, help=TIPO_HELP[tipo])
 cols[4].metric('Migraciones masivas', charts.fmt_pct(c_all['migracion_masiva'].mean()), border=True,
                help='Fracción de los cambios que ocurren en volúmenes atípicos (decisión de Zapping o del '
                     'partner, no del usuario). Se calcula sobre todos los cambios.')
@@ -42,7 +49,12 @@ with left:
     fig.update_layout(barmode='stack')
     charts.layout(fig, height=360, y_title='Cambios de plan')
     charts.show(fig, g.pivot(index='mes', columns='tipo', values='cambios').fillna(0).astype(int).reset_index(),
-                key='cambios_mes')
+                key='cambios_mes',
+                caption='Cambios de plan base por mes, con el usuario activo el día anterior y el siguiente. Se '
+                        'clasifican por precio de lista mensual en USD: *upgrade* sube, *downgrade* baja, *lateral* '
+                        'mantiene el precio. *Reajuste de precio*: el mismo plan cambia de precio en el catálogo '
+                        '(p.ej. Zapping Full de 18.900 a 19.900 CLP); no es una decisión del usuario. Los picos '
+                        'corresponden a migraciones masivas (detalle al final de la página).')
 with right:
     st.subheader('Impacto neto en MRR')
     net = c.assign(mes=c['date'].dt.strftime('%Y-%m')).groupby('mes')['delta_mrr_usd'].sum().reset_index()
@@ -52,18 +64,20 @@ with right:
                            hovertemplate='US$ %{y:,.0f}<extra></extra>'))
     charts.layout(fig, height=360, y_title='Δ MRR (USD)', legend=False)
     charts.show(fig, net.rename(columns={'delta_mrr_usd': 'delta_mrr_usd_neto'}), key='cambios_mrr',
-                caption='Suma de la diferencia de MRR entre el plan nuevo y el anterior. Índigo: el MRR sube; fucsia: baja.')
+                caption='Efecto de los cambios de plan en el MRR: suma, por mes, de la diferencia entre el MRR del '
+                        'plan nuevo y el del anterior. Índigo: el MRR sube; fucsia: baja.')
 
 # ------------------------------------------------------------------------------------------
 st.subheader('Desde qué plan hacia cuál')
-st.caption('Los 15 pares más frecuentes. El color del flujo indica el tipo de cambio.')
 pairs = (c.groupby(['prev_package_name', 'new_package_name', 'tipo']).size().rename('n').reset_index()
          .sort_values('n', ascending=False).head(15))
 src_nodes = list(dict.fromkeys(pairs['prev_package_name']))
 dst_nodes = list(dict.fromkeys(pairs['new_package_name']))
 labels = [f'{p} (antes)' for p in src_nodes] + [f'{p} (después)' for p in dst_nodes]
+charts.legend_html({charts.TIPO_LABELS[t]: charts.tipo_colors()[t] for t in TIPOS if t in set(pairs['tipo'])})
 fig = go.Figure(go.Sankey(
-    node=dict(label=labels, pad=14, thickness=12, color=charts.ink('axis'), line=dict(width=0)),
+    node=dict(label=labels, pad=14, thickness=12, color=charts.ink('axis'), line=dict(width=0),
+              hovertemplate='%{label}: %{value:,.0f} cambios<extra></extra>'),
     textfont=charts.sankey_font(),
     link=dict(source=[src_nodes.index(p) for p in pairs['prev_package_name']],
               target=[len(src_nodes) + dst_nodes.index(p) for p in pairs['new_package_name']],
@@ -73,7 +87,10 @@ fig = go.Figure(go.Sankey(
 fig.update_layout(height=460, margin=dict(l=8, r=8, t=8, b=8), separators=',.',
                   font=dict(family=charts.FONT))
 charts.show(fig, pairs.rename(columns={'prev_package_name': 'plan_anterior', 'new_package_name': 'plan_nuevo',
-                                       'n': 'cambios'}), key='cambios_sankey')
+                                       'n': 'cambios'}), key='cambios_sankey',
+            caption='Los 15 pares plan anterior → plan nuevo más frecuentes. A la izquierda, el plan de origen; a la '
+                    'derecha, el de destino. El grosor de cada flujo es el número de cambios y su color, el tipo de '
+                    'cambio (leyenda arriba).')
 
 with st.expander('Migraciones masivas detectadas'):
     mig = (c_all[c_all['migracion_masiva']]

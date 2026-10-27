@@ -120,12 +120,20 @@ class Filters:
         return None
 
     def describe(self) -> str:
-        parts = [f"{self.start:%d-%m-%Y} a {self.end:%d-%m-%Y}"]
+        """Filtros activos, para el subtítulo de cada página. El período solo se menciona si no es la ventana completa."""
+        d0, dn = bounds()
+        parts = [] if (self.start, self.end) == (d0, dn) else [f"{self.start:%d-%m-%Y} a {self.end:%d-%m-%Y}"]
         for dim, vals in self.active_dims.items():
             parts.append(f"{DIMS[dim]}: {', '.join(vals)}")
         if self.excluir_masivos:
             parts.append('sin eventos masivos')
         return ' · '.join(parts)
+
+    def subtitle(self, prefix: str = '') -> None:
+        """Subtítulo de la página: la actividad o métrica que cubre y los filtros activos, si los hay."""
+        text = ' · '.join(p for p in (prefix, self.describe()) if p)
+        if text:
+            st.caption(text)
 
 
 def get_filters() -> Filters:
@@ -231,13 +239,37 @@ def retencion_nuevos() -> pd.DataFrame:
     return r
 
 
+def _top_pairs(df: pd.DataFrame, cols: List[str], n: int = 2) -> str:
+    """'Básico → Esencial (829), Plus → Esencial (52)': los n grupos más grandes del día."""
+    g = df.groupby(cols).size().sort_values(ascending=False).head(n)
+    return ', '.join(f"{' → '.join(map(str, k)) if isinstance(k, tuple) else k} ({v:,})".replace(',', '.')
+                     for k, v in g.items())
+
+
 @st.cache_data(show_spinner=False)
 def eventos_clave() -> pd.DataFrame:
-    """Días con eventos masivos, para anotar las series de tiempo."""
+    """Días con eventos masivos, para anotar las series de tiempo y explicarlos en el Resumen.
+
+    - Fin de convenio: bajas masivas (un partner B2B termina su convenio y sus usuarios pierden el plan el mismo
+      día). Baja el número de usuarios y el MRR.
+    - Migración de catálogo: cientos de usuarios pasan el mismo día del mismo plan A al mismo plan B (decisión de
+      Zapping o del partner). Cambia el plan y el MRR, pero no el número de usuarios.
+    Solo se marcan las migraciones de 200 o más usuarios en el día.
+    """
     ab = pd.read_parquet(OUT / 'altas_bajas.parquet')
-    mass = (ab[ab['baja_masiva'] == True].groupby('date').size()
-            .rename('usuarios').reset_index().assign(tipo='Fin de convenio'))
+    mb = ab[ab['baja_masiva'] == True].assign(
+        partner=lambda x: x['category'].str.title() + ' (partner ' + x['partner_id'].astype('Int64').astype(str) + ')')
+    mass = mb.groupby('date').agg(usuarios=('id', 'size'), efecto_mrr=('mrr_usd', 'sum')).reset_index()
+    mass['efecto_mrr'] *= -1
+    mass['efecto_activos'] = -mass['usuarios']
+    mass['detalle'] = [_top_pairs(mb[mb['date'] == d], ['partner']) for d in mass['date']]
+    mass['tipo'] = 'Fin de convenio'
     cp = pd.read_parquet(OUT / 'cambios_plan.parquet')
-    mig = cp[cp['migracion_masiva']].groupby('date').size().rename('usuarios').reset_index()
-    mig = mig[mig['usuarios'] >= 200].assign(tipo='Migración de catálogo')
-    return pd.concat([mass, mig], ignore_index=True).sort_values('date')
+    mc = cp[cp['migracion_masiva']]
+    mig = mc.groupby('date').agg(usuarios=('id', 'size'), efecto_mrr=('delta_mrr_usd', 'sum')).reset_index()
+    mig = mig[mig['usuarios'] >= 200]
+    mig['efecto_activos'] = 0
+    mig['detalle'] = [_top_pairs(mc[mc['date'] == d], ['prev_package_name', 'new_package_name']) for d in mig['date']]
+    mig['tipo'] = 'Migración de catálogo'
+    cols = ['date', 'tipo', 'detalle', 'usuarios', 'efecto_activos', 'efecto_mrr']
+    return pd.concat([mass, mig], ignore_index=True)[cols].sort_values('date').reset_index(drop=True)

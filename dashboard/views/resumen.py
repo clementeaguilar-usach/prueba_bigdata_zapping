@@ -1,3 +1,4 @@
+import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
@@ -5,7 +6,7 @@ from core import charts, data, metrics
 
 f = data.get_filters()
 st.title('Resumen')
-st.caption(f.describe())
+f.subtitle()
 
 snap = metrics.snapshot(f)
 if snap.empty:
@@ -76,20 +77,43 @@ with left:
                                hovertemplate='US$ %{y:,.0f}<extra></extra>'))
     charts.daily_axis(charts.layout(fig, height=320, y_title='MRR (USD)', legend=False))
     charts.mark_events(fig, events, f.start, f.end)
-    charts.show(fig, dd[['d', 'mrr']].rename(columns={'d': 'fecha', 'mrr': 'mrr_usd'}), key='res_mrr')
+    charts.show(fig, dd[['d', 'mrr']].rename(columns={'d': 'fecha', 'mrr': 'mrr_usd'}), key='res_mrr',
+                caption='MRR en USD de todos los planes activos cada día. Línea continua: fin de convenio; '
+                        'punteada: migración de catálogo. Ambos eventos mueven el MRR: las migraciones cambian el '
+                        'precio del plan de cientos de usuarios a la vez.')
 with right:
     st.markdown('**Usuarios activos**')
     fig = go.Figure(go.Scatter(x=dd['d'], y=dd['activos'], mode='lines', name='Usuarios activos',
                                line=dict(color=charts.highlight(), width=2),
                                hovertemplate='%{y:,.0f} usuarios<extra></extra>'))
     charts.daily_axis(charts.layout(fig, height=320, y_title='Usuarios', legend=False))
-    charts.mark_events(fig, events, f.start, f.end)
-    charts.show(fig, dd[['d', 'activos']].rename(columns={'d': 'fecha'}), key='res_activos')
+    charts.mark_events(fig, events, f.start, f.end, tipos=['Fin de convenio'])
+    charts.show(fig, dd[['d', 'activos']].rename(columns={'d': 'fecha'}), key='res_activos',
+                caption='Usuarios con al menos un plan activo cada día. Solo se marca el fin de convenio (12-06), el '
+                        'único evento masivo que cambia el número de usuarios: las migraciones solo les cambian el plan.')
 
+# ------------------------------------------------------------------------------------------
 ev = events[(events['date'] >= f.start) & (events['date'] <= f.end)]
 if not ev.empty:
-    st.markdown('**Eventos masivos marcados con líneas verticales**')
-    st.table(ev.assign(fecha=ev['date'].dt.strftime('%d/%m/%Y'))[['fecha', 'tipo', 'usuarios']].set_index('fecha'))
+    st.subheader('Eventos masivos')
+    st.markdown(
+        'Son días en que muchos usuarios cambian a la vez por una decisión de Zapping o de un partner, no por '
+        'decisión propia. Se detectan en los datos como volúmenes atípicos (ver README, criterio 7):\n'
+        '- **Fin de convenio** (línea continua): un partner B2B termina su convenio y todos sus usuarios pierden el '
+        'plan el mismo día. Baja el número de usuarios y el MRR.\n'
+        '- **Migración de catálogo** (línea punteada): cientos de usuarios pasan el mismo día del mismo plan A al '
+        'mismo plan B, por ejemplo cuando un plan se reemplaza por una versión nueva. Cambia el plan y el MRR, pero '
+        'no el número de usuarios. Se marcan las de 200 o más usuarios en el día.')
+    signed = lambda x: ('+' if x > 0 else '') + charts.fmt_int(x)  # noqa: E731
+    tbl = pd.DataFrame({
+        'Fecha': ev['date'].dt.strftime('%d/%m/%Y'), 'Tipo': ev['tipo'], 'Qué pasó': ev['detalle'],
+        'Usuarios': ev['usuarios'].map(charts.fmt_int), 'Efecto en activos': ev['efecto_activos'].map(signed),
+        'Efecto en MRR (USD)': ev['efecto_mrr'].map(signed)})
+    st.table(tbl.set_index('Fecha'))
+    charts.figure_caption('Eventos masivos del período. *Qué pasó*: partners (fin de convenio) o pares plan '
+                          'anterior → plan nuevo (migración) con más usuarios ese día. *Efecto en MRR*: MRR de los '
+                          'planes perdidos o diferencia de precio de los migrados; el resto de los movimientos del '
+                          'día no se incluye.')
 
 with st.expander('Ver tabla mensual'):
     tbl = snap.assign(mes=snap['month'].map(data.month_label)).merge(

@@ -56,9 +56,9 @@ Está hecho en Streamlit + Plotly. Las métricas que dependen de los filtros se 
 
 | Página | Contenido |
 |---|---|
-| Resumen | Indicadores del mes de referencia con variación contra el mes anterior (activos, MRR, ARPPU, MAU/suscriptores, churn 1M). MRR y activos diarios con los eventos masivos marcados |
-| Flujo de clientes (3.1) | Altas (nuevas y reactivaciones) contra bajas (sin retorno, con retorno y masivas) por día, semana o mes. Activos diarios, bajas orgánicas por dimensión y addons |
-| Reactivaciones (3.2) | Indicadores de intermitencia (% de usuarios que salen y vuelven, mediana de días fuera, % que vuelve al mismo plan), distribución de los días fuera, reactivaciones por usuario y por mes, y Sankey plan anterior → plan con el que vuelve |
+| Resumen | Indicadores del mes de referencia con variación contra el mes anterior (activos, MRR, ARPPU, MAU/suscriptores, churn 1M). MRR y activos diarios con los eventos masivos marcados, y tabla de eventos masivos (qué pasó, usuarios, efecto en activos y en MRR) |
+| Flujo de clientes (3.1) | Altas (nuevas y reactivaciones) contra bajas (sin retorno, con retorno y masivas) por semana o mes, con el total de contrataciones y de abandonos de cada barra. Activos diarios. Planes contratados y planes con que se van (o cualquier otra dimensión), con totales y neto por segmento. Addons contratados y cancelados |
+| Reactivaciones (3.2) | Indicadores de intermitencia (% de usuarios que salen y vuelven, mediana de días fuera, % que vuelve al mismo plan), distribución de los días fuera, reactivaciones por usuario y por mes, y, por plan con que se fue, cuántos vuelven al mismo plan o a otro (con las combinaciones más frecuentes) |
 | Cambios de plan (3.3) | Cambios por mes y tipo, impacto neto en MRR, Sankey plan anterior → nuevo y detalle de las migraciones masivas |
 | Ingresos (4.2–4.3) | MRR mensual y ARPPU por dimensión, MRR en moneda local por país y MRR diario |
 | Engagement (4.4) | MAU contra suscriptores al cierre de mes, ratio MAU/suscriptores, consumo diario (fracción de activos con consumo en 30 días y horas medianas) y mapa de calor por dimensión |
@@ -73,7 +73,9 @@ Está hecho en Streamlit + Plotly. Las métricas que dependen de los filtros se 
 - **Visualización:**
   - Un solo eje por gráfico.
   - Paleta categórica fija de 8 colores, donde cada segmento conserva su color aunque cambien los filtros; desde el noveno segmento y "Otros" se usa el neutro.
-  - Las bajas con retorno usan el color de las bajas con un rayado diagonal (misma entidad, otra variante); las masivas van en el color de contexto.
+  - Las bajas sin retorno usan el color de las bajas con un rayado diagonal (misma entidad, otra variante); las masivas van en el color de contexto.
+  - Cada figura tiene un pie numerado (*Figura n.*) que explica qué se está mirando.
+  - Eventos masivos en las series diarias: línea continua para el fin de convenio y punteada para la migración de catálogo. Los gráficos de usuarios marcan solo el fin de convenio, porque las migraciones cambian el plan y el MRR pero no el número de usuarios.
 - **Identidad visual de Zapping** ([brand.zapping.com](https://brand.zapping.com/)), sin logos. Los valores salen de los tokens CSS del Brand Hub. El tema está en [`.streamlit/config.toml`](.streamlit/config.toml), y los colores de los gráficos en [`dashboard/core/charts.py`](dashboard/core/charts.py).
   - **Color binario:** fondo negro de marca `#040405`, Zapink Pulse `#e90068` como color primario y texto blanco. No hay degradados ni amarillo, y el glow no se usa.
   - **Jerarquía sin gris:** texto secundario, ejes, grilla y bordes usan opacidad de blanco (`white-α`), no grises arbitrarios.
@@ -289,3 +291,4 @@ El notebook verifica con `assert`:
 | 2026-10-27 | **Dashboard (actividad 5)** en Streamlit + Plotly + DuckDB: 7 páginas con filtros globales. Sus métricas se verificaron contra las tablas del notebook. |
 | 2026-10-27 | **Respuestas de Zapping.** (1) Se valida el proxy de `created_user`. (2) `time_watched` es consumo de los últimos 30 días: el MAU pasa a medirse en el snapshot de fin de mes (enero: de 72,6% a 64,8%). (3) Se autoriza publicar el dashboard: se agregan `dashboard/requirements.txt`, la guía de publicación y la sección 9 del notebook para el enlace. (4) **Se elimina `GRACE_DAYS`**: todo salto es baja + reactivación, también en la vida media y el churn. Se quitan `es_tecnica`, `alta_real` y `baja_real`, y se agregan la sección *Intermitencia* y, en el dashboard, las bajas con y sin retorno. El churn orgánico 1M sube ~3 pp y la vida media de `hardbundle` baja de 219 a 112 días. |
 | 2026-10-27 | **Identidad visual de Zapping en el dashboard** (tema negro + Zapink, Poppins, jerarquía por opacidad, acentos de marca validados para daltonismo). Sin cambios en las métricas. |
+| 2026-10-27 | **Revisión del dashboard** (comentarios del autor). Pie numerado en todas las figuras y sin el subtítulo de fechas. Resumen: se explican los eventos masivos y su efecto. Flujo: sin granularidad diaria; totales de contrataciones y abandonos; nuevo desglose de planes contratados y cancelados, que reemplaza a *bajas orgánicas por dimensión*; rayado en las bajas sin retorno; addons por nombre. Reactivaciones: el Sankey se reemplaza por barras mismo plan / otro plan. Cambios: definición de cada tipo y leyenda del Sankey. Engagement: *suscriptores* en vez de *activos* y corrección del hover del mapa de calor. Sin cambios en las métricas. |

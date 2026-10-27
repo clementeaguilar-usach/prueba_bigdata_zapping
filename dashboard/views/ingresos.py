@@ -5,7 +5,7 @@ from core import charts, data, metrics
 
 f = data.get_filters()
 st.title('Ingresos')
-st.caption('Métricas 4.2 (MRR) y 4.3 (ARPPU) · ' + f.describe())
+f.subtitle('Métricas 4.2 (MRR) y 4.3 (ARPPU)')
 
 dim = st.selectbox('Agrupar por', list(data.DIMS), format_func=data.DIMS.get, key='ing_dim')
 snap = metrics.snapshot(f, dim)
@@ -27,7 +27,8 @@ for seg in order:
 fig.update_layout(barmode='stack')
 charts.layout(fig, height=380, y_title='MRR (USD)')
 charts.show(fig, snap.pivot(index='month', columns='segment', values='mrr').round(0).reset_index(), key='ing_mrr',
-            caption='Snapshot del último día de cada mes. * = mes parcial.')
+            caption=f'MRR en USD por mes, apilado por {data.DIMS[dim].lower()}. Cada barra es el snapshot del '
+                    'último día del mes (* = mes parcial).')
 
 # ------------------------------------------------------------------------------------------
 st.subheader(f'ARPPU por {data.DIMS[dim].lower()}')
@@ -39,11 +40,11 @@ for seg in order:
                     hovertemplate=f'{seg}: US$ %{{y:,.2f}}<extra></extra>')
 charts.layout(fig, height=360, y_title='ARPPU (USD)')
 charts.show(fig, snap.pivot(index='month', columns='segment', values='arppu').round(2).reset_index(),
-            key='ing_arppu', caption='MRR / usuarios pagadores (MRR > 0).')
+            key='ing_arppu', caption=f'Ingreso promedio por usuario pagador (MRR / usuarios con MRR > 0) por '
+                                     f'{data.DIMS[dim].lower()}, en el snapshot de cada mes.')
 
 # ------------------------------------------------------------------------------------------
 st.subheader('MRR en moneda local')
-st.caption('Sin conversión: aísla el efecto del tipo de cambio. Un gráfico por país y moneda, cada uno con su escala.')
 loc = metrics.mrr_local(f)
 loc = loc[loc['mrr_local'] > 0]
 if loc.empty:
@@ -62,6 +63,8 @@ else:
         with cols[i % len(cols)]:
             st.markdown(f'**{country} · {cur}**')
             charts.show(fig, sub[['month', 'mrr_local']], key=f'ing_local_{country}_{cur}')
+    charts.figure_caption('MRR mensual en la moneda en que se cobra, sin convertir: aísla el efecto del tipo de '
+                          'cambio. Un gráfico por país y moneda, cada uno con su propia escala.')
 
 # ------------------------------------------------------------------------------------------
 st.subheader('MRR diario')
@@ -71,4 +74,5 @@ fig = go.Figure(go.Scatter(x=dd['d'], y=dd['mrr'], mode='lines', line=dict(color
 charts.daily_axis(charts.layout(fig, height=280, y_title='MRR (USD)', legend=False))
 charts.mark_events(fig, data.eventos_clave(), f.start, f.end)
 charts.show(fig, dd[['d', 'mrr']].rename(columns={'d': 'fecha', 'mrr': 'mrr_usd'}), key='ing_diario',
-            caption='Líneas verticales: eventos masivos (fin de convenio, migraciones de catálogo).')
+            caption='MRR en USD de todos los planes activos cada día. Línea continua: fin de convenio; punteada: '
+                    'migración de catálogo (ver Resumen).')

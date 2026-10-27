@@ -7,7 +7,7 @@ from core import charts, data
 
 f = data.get_filters()
 st.title('Reactivaciones')
-st.caption('Actividad 3.2 · ' + f.describe())
+f.subtitle('Actividad 3.2')
 
 r = data.apply_event_filters(data.reactivaciones(), f)
 if r.empty:
@@ -49,8 +49,9 @@ with left:
     fig.update_xaxes(tickvals=[1, 3, 7, 14, 30, 45, cap + 1], ticktext=['1', '3', '7', '14', '30', '45', f'>{cap}'],
                      tickangle=0)
     charts.show(fig, pd.DataFrame({'dias_fuera': labels, 'reactivaciones': hist.values}), key='react_gap',
-                caption='Solo reactivaciones dentro de la ventana observada. La mayoría vuelve en pocos días: '
-                        'la intermitencia es parte del comportamiento del rubro.')
+                caption='Distribución de los días sin plan entre una baja y la reactivación siguiente (solo '
+                        'reactivaciones dentro de la ventana observada; más de 60 días se agrupan al final). La mayoría '
+                        'vuelve en pocos días: la intermitencia es parte del comportamiento del rubro.')
 with right:
     st.subheader('Reactivaciones por usuario')
     if por_usuario.empty:
@@ -65,7 +66,8 @@ with right:
                       hovermode='closest')
         fig.update_xaxes(type='category')  # si no, Plotly trata el eje como numérico y descarta '5+'
         charts.show(fig, pd.DataFrame({'reactivaciones': etiquetas, 'usuarios': ciclos.values}), key='react_ciclos',
-                    caption='Usuarios intermitentes según cuántas veces volvieron dentro del período.')
+                    caption='Usuarios intermitentes según cuántas veces se fueron y volvieron dentro del período. '
+                            'La mayoría lo hace una sola vez, pero un grupo vuelve 5 o más veces.')
 
 # ------------------------------------------------------------------------------------------
 st.subheader('Reactivaciones por mes')
@@ -84,33 +86,47 @@ fig.update_layout(barmode='stack')
 charts.layout(fig, height=320, y_title='Reactivaciones')
 charts.show(fig, g.pivot(index='mes', columns='origen_lbl', values='reactivaciones').fillna(0).astype(int)
             .reset_index(), key='react_mes',
-            caption='"Historial previo a 2026": su primera aparición es una vuelta, pero su último plan no es observable.')
+            caption='Reactivaciones por mes según su origen. *Último plan observado*: el usuario se fue y volvió '
+                    'dentro de la ventana, así que se conoce el plan con que se fue. *Historial previo a 2026*: el '
+                    'usuario ya existía antes del 01-01 (su primer plan es anterior) y su primera aparición en los '
+                    'datos es una vuelta, pero el plan con que se fue no es observable.')
 
 # ------------------------------------------------------------------------------------------
 st.subheader('Con qué plan se fueron y con cuál volvieron')
-st.caption('Reactivaciones dentro de la ventana. Se muestran los 12 pares más frecuentes: en rosa, los que cambian '
-           'de plan; en gris, los que vuelven al mismo.')
-pairs = (dentro.groupby(['last_package_name', 'new_package_name']).size().rename('n').reset_index()
-         .sort_values('n', ascending=False).head(12))
-if pairs.empty:
+obs = dentro.dropna(subset=['last_package_name', 'new_package_name']).astype({'mismo_plan': bool})
+if obs.empty:
     charts.empty_state()
 else:
-    src_nodes = list(dict.fromkeys(pairs['last_package_name']))
-    dst_nodes = list(dict.fromkeys(pairs['new_package_name']))
-    labels = [f'{p} (antes)' for p in src_nodes] + [f'{p} (ahora)' for p in dst_nodes]
-    same = pairs['last_package_name'] == pairs['new_package_name']
-    link_color = np.where(same, charts.rgba(charts.context(), 0.45), charts.rgba(charts.highlight(), 0.45))
-    fig = go.Figure(go.Sankey(
-        node=dict(label=labels, pad=14, thickness=12, color=charts.ink('axis'), line=dict(width=0)),
-        textfont=charts.sankey_font(),
-        link=dict(source=[src_nodes.index(p) for p in pairs['last_package_name']],
-                  target=[len(src_nodes) + dst_nodes.index(p) for p in pairs['new_package_name']],
-                  value=pairs['n'], color=link_color,
-                  hovertemplate='%{source.label} → %{target.label}: %{value:,.0f}<extra></extra>')))
-    fig.update_layout(height=420, margin=dict(l=8, r=8, t=8, b=8), separators=',.',
-                      font=dict(family=charts.FONT))
-    charts.show(fig, pairs.rename(columns={'last_package_name': 'plan_anterior', 'new_package_name': 'plan_nuevo',
-                                           'n': 'reactivaciones'}), key='react_sankey')
+    top = obs['last_package_name'].value_counts().head(10).index[::-1]  # el más frecuente arriba
+    g = (obs.assign(vuelta=np.where(obs['mismo_plan'], 'Vuelve al mismo plan', 'Vuelve con otro plan'))
+         .loc[lambda x: x['last_package_name'].isin(top)]
+         .groupby(['last_package_name', 'vuelta']).size().unstack(fill_value=0)
+         .reindex(index=top, columns=['Vuelve al mismo plan', 'Vuelve con otro plan'], fill_value=0))
+    share = g.div(g.sum(axis=1), axis=0)
+    color = {'Vuelve al mismo plan': charts.context(), 'Vuelve con otro plan': charts.highlight()}
+    fig = go.Figure()
+    for lbl in g.columns:
+        fig.add_bar(y=g.index, x=g[lbl], name=lbl, orientation='h', marker_color=color[lbl], marker_line_width=0,
+                    customdata=share[lbl], hovertemplate=f'{lbl}: %{{x:,.0f}} (%{{customdata:.0%}})<extra></extra>')
+    fig.update_layout(barmode='stack')
+    charts.layout(fig, height=max(280, 34 * len(top) + 90), x_title='Reactivaciones', hovermode='y unified')
+    fig.update_xaxes(showgrid=True, gridcolor=charts.ink('grid'))
+    fig.update_yaxes(gridcolor='rgba(0,0,0,0)')
+    charts.show(fig, g.reset_index().rename(columns={'last_package_name': 'plan_con_que_se_fue'}), key='react_planes',
+                caption='Reactivaciones según el plan que el usuario tenía al irse (los 10 más frecuentes). En gris, '
+                        'las que vuelven con el mismo plan; en rosa, las que vuelven con otro. Sin filtros, quien se fue de Esencial o Nacional vuelve casi siempre al '
+                        'mismo plan; de Plus o Premium, cerca de la mitad cambia.')
+
+    cambio = obs[~obs['mismo_plan']]
+    if not cambio.empty:
+        pares = (cambio.groupby(['last_package_name', 'new_package_name']).size().rename('reactivaciones')
+                 .reset_index().sort_values('reactivaciones', ascending=False).head(10))
+        st.dataframe(pares.rename(columns={'last_package_name': 'Plan con que se fue',
+                                           'new_package_name': 'Plan con que volvió',
+                                           'reactivaciones': 'Reactivaciones'}),
+                     hide_index=True, width='stretch')
+        charts.figure_caption('Las 10 combinaciones más frecuentes entre quienes vuelven con un plan distinto al que '
+                              'tenían (la parte rosa de la figura anterior).')
 
 with st.expander('Detalle de reactivaciones (df_reactivaciones filtrado)'):
     cols_ = ['date', 'id', 'origen', 'gap_days', 'mismo_plan', 'last_package_name', 'last_mrr_usd',

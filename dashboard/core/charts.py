@@ -119,7 +119,7 @@ def flow_colors() -> Dict[str, str]:
 
 
 # Clases que comparten color con otra y se distinguen por textura (rayado diagonal)
-HATCHED = {'Baja con retorno'}
+HATCHED = {'Baja sin retorno'}
 
 
 def hatch(clase: str) -> dict:
@@ -156,6 +156,14 @@ def layout(fig: go.Figure, height: int = 360, y_title: Optional[str] = None, y_f
     return fig
 
 
+def legend_html(items: Dict[str, str]) -> None:
+    """Leyenda de colores en HTML, para gráficos sin leyenda propia (Sankey)."""
+    chips = ''.join(f'<span style="display:inline-flex;align-items:center;gap:6px;margin-right:18px">'
+                    f'<span style="width:12px;height:12px;border-radius:3px;background:{color}"></span>{label}</span>'
+                    for label, color in items.items())
+    st.markdown(f'<div style="font-size:0.875rem;margin:4px 0 8px">{chips}</div>', unsafe_allow_html=True)
+
+
 def sankey_font() -> dict:
     return dict(color=ink('primary'), size=12, shadow='none', family=FONT)
 
@@ -166,21 +174,43 @@ def daily_axis(fig: go.Figure) -> go.Figure:
     return fig
 
 
-def mark_events(fig: go.Figure, events: pd.DataFrame, start: pd.Timestamp, end: pd.Timestamp) -> go.Figure:
-    """Líneas verticales finas en los días con eventos masivos."""
+EVENT_DASH = {'Fin de convenio': 'solid', 'Migración de catálogo': 'dot'}
+
+
+def mark_events(fig: go.Figure, events: pd.DataFrame, start: pd.Timestamp, end: pd.Timestamp,
+                tipos: Iterable[str] = ('Fin de convenio', 'Migración de catálogo')) -> go.Figure:
+    """Líneas verticales finas en los días con eventos masivos: continua el fin de convenio, punteada la migración.
+
+    Las migraciones de catálogo cambian el plan (y el MRR) pero no el número de usuarios, así que los gráficos de
+    usuarios marcan solo los fines de convenio.
+    """
     for _, ev in events.iterrows():
-        if start <= ev['date'] <= end:
-            fig.add_vline(x=ev['date'], line_width=1, line_color=ink('axis'), layer='below')
+        if ev['tipo'] in tipos and start <= ev['date'] <= end:
+            fig.add_vline(x=ev['date'], line_width=1, line_color=ink('secondary' if ev['tipo'] == 'Fin de convenio'
+                                                                  else 'axis'),
+                          line_dash=EVENT_DASH[ev['tipo']], layer='below')
     return fig
+
+
+def reset_figures() -> None:
+    """Reinicia la numeración de figuras (una vez por ejecución de la página)."""
+    st.session_state['_fig_n'] = 0
+
+
+def figure_caption(text: str) -> None:
+    """Pie de figura numerado, como en un paper: 'Figura n. <qué se está mirando>'."""
+    n = st.session_state.get('_fig_n', 0) + 1
+    st.session_state['_fig_n'] = n
+    st.caption(f'**Figura {n}.** {text}')
 
 
 def show(fig: go.Figure, table: Optional[pd.DataFrame] = None, key: Optional[str] = None,
          caption: Optional[str] = None) -> None:
-    """Muestra el gráfico y, debajo, su tabla equivalente con descarga CSV."""
+    """Muestra el gráfico, su pie de figura y, debajo, su tabla equivalente con descarga CSV."""
     st.plotly_chart(fig, use_container_width=True, theme='streamlit', key=key,
                     config={'displaylogo': False, 'displayModeBar': False})
     if caption:
-        st.caption(caption)
+        figure_caption(caption)
     if table is not None:
         with st.expander('Ver tabla'):
             st.dataframe(table, width='stretch', hide_index=True)

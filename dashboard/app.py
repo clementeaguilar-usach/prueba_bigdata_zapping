@@ -11,7 +11,7 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from core import data  # noqa: E402
+from core import charts, data  # noqa: E402
 
 st.set_page_config(page_title='Métricas de negocio · Zapping', layout='wide')
 # Lo que el tema de .streamlit/config.toml no cubre: títulos en Bold Italic (la itálica es la voz de la marca)
@@ -20,7 +20,7 @@ st.html('''<style>
 h1, h2, h3 { font-style: italic; letter-spacing: -0.02em; }
 [data-testid="stMetricValue"] { font-weight: 700; letter-spacing: -0.02em; }
 [data-baseweb="tag"], [data-testid="stBaseButton-primary"] { font-weight: 700; }
-code { color: rgba(255, 255, 255, 0.7); }
+code { color: rgba(255, 255, 255, 0.7) !important; }
 </style>''')
 
 if not (data.OUT / 'user_day.parquet').exists():
@@ -66,4 +66,5 @@ pages = [
     st.Page('views/engagement.py', title='Engagement', icon=':material/play_circle:'),
     st.Page('views/retencion.py', title='Retención', icon=':material/favorite:'),
 ]
+charts.reset_figures()
 st.navigation(pages).run()

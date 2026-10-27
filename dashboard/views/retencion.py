@@ -5,7 +5,7 @@ from core import charts, data, metrics
 
 f = data.get_filters()
 st.title('Retención')
-st.caption('Métricas 4.1, 4.5 y 4.6 · ' + f.describe())
+f.subtitle('Métricas 4.1, 4.5 y 4.6')
 
 # ------------------------------------------------------------------------------------------
 st.subheader('Usuarios por antigüedad (4.1)')
@@ -28,7 +28,8 @@ else:
                   y_format='.0%' if as_pct else None)
     charts.show(fig, ten.pivot(index='month', columns='tenure_bucket', values='usuarios')
                 .reindex(columns=data.TENURE_ORDER).reset_index(), key='ret_tenure',
-                caption='Antigüedad desde la creación del primer plan observado (proxy de created_user).')
+                caption='Composición de los usuarios activos al cierre de cada mes por antigüedad, medida desde '
+                        'la creación de su primer plan observado (proxy de created_user). Más oscuro, más reciente.')
 
 # ------------------------------------------------------------------------------------------
 st.subheader('Tasa de churn (4.6)')
@@ -55,7 +56,10 @@ else:
     charts.layout(fig, height=360, y_title=f'Churn {horizonte}', y_format='.0%', legend=dim != 'total',
                   x_title='Mes de inicio de la cohorte')
     charts.show(fig, ch.pivot(index='cohort_month', columns='segment', values='value').round(4).reset_index(),
-                key='ret_churn')
+                key='ret_churn',
+                caption=f'De los usuarios activos el primer día de cada mes, la fracción que se dio de baja dentro '
+                        f'de los {horizonte[0]} meses siguientes. Solo se muestran los meses con la ventana completa '
+                        'observada.')
 
 # ------------------------------------------------------------------------------------------
 st.subheader('Vida media por plan (4.5)')
@@ -81,7 +85,8 @@ fig.update_xaxes(range=[0, 730])
 cols_v = [col, 'spells', 'usuarios', 'pct_censurado', 'mediana_km_dias', 'rmst_365_dias', 'media_cerrados_dias',
           'metodo']
 charts.show(fig, vida[cols_v], key='ret_km',
-            caption='Curvas de Kaplan–Meier con entrada tardía. Se censuran los planes que siguen activos y los que '
+            caption='Fracción de los usuarios que sigue en cada plan según los días transcurridos desde que lo '
+                    'contrató. Curvas de Kaplan–Meier con entrada tardía. Se censuran los planes que siguen activos y los que '
                     'terminan por migración masiva o fin de convenio. La mediana es donde la curva cruza la línea del 50%.')
 
 # ------------------------------------------------------------------------------------------
