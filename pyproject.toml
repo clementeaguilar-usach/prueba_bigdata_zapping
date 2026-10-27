@@ -1,0 +1,31 @@
+[project]
+name = "prueba-bigdata"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "clementeaguilar-usach", email = "clemente.aguilar@usach.cl" }
+]
+requires-python = ">=3.9.6"
+dependencies = [
+    "duckdb>=1.4.5",
+    "lifelines>=0.30.0",
+    "numpy>=2.0.2",
+    "pandas>=2.3.3",
+    "plotly>=7.1.0",
+    "pyarrow>=21.0.0",
+    "streamlit>=1.50.0",
+]
+
+[project.scripts]
+prueba-bigdata = "prueba_bigdata:main"
+
+[build-system]
+requires = ["uv_build>=0.13.5,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "ipykernel>=6.31.0",
+    "jupyterlab>=4.5.11",
+]

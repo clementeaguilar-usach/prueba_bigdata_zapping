@@ -1,0 +1,8 @@
+# Dependencias mínimas del dashboard (Streamlit Community Cloud usa este archivo por estar junto a app.py).
+# El entorno completo del notebook está en ../requirements.txt.
+duckdb==1.4.5
+numpy==2.0.2
+pandas==2.3.3
+plotly==7.1.0
+pyarrow==21.0.0
+streamlit==1.50.0
