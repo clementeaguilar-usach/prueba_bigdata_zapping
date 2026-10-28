@@ -190,6 +190,22 @@ Algunos días concentran volúmenes que no corresponden a decisiones individuale
 
 **Volumen atípico (común a ambos tipos).** Los conteos de eventos por (día, grupo) tienen una cola muy pesada: mediana 1, Q3 2 y máximo 2.359. Por eso se usa la **cerca de Tukey para outliers extremos sobre el log10 de los conteos**: `umbral = 10^(Q3 + k·IQR)` con `k = MASS_TUKEY_K = 3` (función `tukey_fence_log`). Con los datos actuales el umbral queda en **16 usuarios** tanto para bajas como para cambios de plan. Como referencia, la mediana diaria es de 14,5 bajas y 4 cambios de plan **en total**.
 
+**Por qué esta fórmula:**
+- **Cuartiles y no media ± desviación estándar.** Los mismos eventos masivos inflan la media y la desviación: con `media + 3σ` el umbral sube a 168 bajas y solo detecta 2 casos, de modo que los atípicos se esconden a sí mismos (*masking*). Los cuartiles no se mueven aunque el máximo sea 2.359.
+- **Escala log10.** En escala original, Q1 = 1, Q3 = 2 e IQR = 1, así que la cerca sería 2 + 3 · 1 = 5 usuarios, un volumen que se ve todos los días. Los conteos varían en órdenes de magnitud (asimetría 41,8; en log baja a 2,6), y en log la cerca es multiplicativa: `Q3 · (Q3/Q1)^k = 2 · 2³ = 16`, es decir, 8 veces el valor alto habitual.
+- **k = 3.** Es la cerca de los atípicos *extremos* de Tukey (1977); la de 1,5 marca atípicos leves. Si el log de los conteos fuera normal, k = 1,5 equivale a μ + 2,7σ (~1 de cada 300 casos sobre la cerca) y k = 3 a μ + 4,7σ (~1 en un millón). Es un umbral para lo que no puede ser una suma de decisiones individuales, no para lo que es simplemente inusual.
+- **Sensibilidad:**
+
+  | k | 1,5 | 2 | 2,5 | **3** | 3,5 | 4 |
+  |---|---|---|---|---|---|---|
+  | Umbral (usuarios) | 5,7 | 8 | 11,3 | **16** | 22,6 | 32 |
+  | (día, grupo) de bajas sobre la cerca | 101 | 62 | 39 | **28** | 22 | 19 |
+  | Pares-día de cambios sobre la cerca | 87 | 65 | 43 | **34** | 30 | 24 |
+
+  - Las **bajas masivas** no dependen de k: los dos casos del 2026-06-12 (2.359 y 262) superan la cerca con cualquier k del rango, y el filtro de ≥ 50% de la base descarta los demás.
+  - En las **migraciones**, k sí importa. Con k = 1,5 entran pares de 6 usuarios, que coinciden por azar en días normales. Con k = 3, los pares marcados concentran 4.656 de los 6.182 cambios.
+- **Limitación:** es una regla heurística, no un test estadístico. En log, la distribución sigue algo asimétrica, y con conteos discretos los cuartiles son gruesos: la cerca solo puede tomar valores de la forma 2 · 2^k. Una alternativa más fina sería un modelo de conteos (Poisson o binomial negativa) con una línea base por grupo; para las bajas, la condición de proporción de la base cumple ese papel.
+
 #### 11.1 Baja masiva (`baja_masiva`)
 - **Grupo:** el partner B2B (`partner_id`) o, si no tiene partner, el plan (`plan_label`).
 - **Criterio:** el volumen del (día, grupo) es atípico **y** el grupo pierde al menos `MASS_CHURN_MIN_SHARE` = 50% de los usuarios activos que tenía el día anterior.
