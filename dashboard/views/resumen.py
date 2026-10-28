@@ -98,12 +98,12 @@ if not ev.empty:
     st.subheader('Eventos masivos')
     st.markdown(
         'Son días en que muchos usuarios cambian a la vez por una decisión de Zapping o de un partner, no por '
-        'decisión propia. Se detectan en los datos como volúmenes atípicos (ver README, criterio 7):\n'
+        'decisión propia. Se detectan en los datos como volúmenes atípicos:\n'
         '- **Fin de convenio** (línea continua): un partner B2B termina su convenio y todos sus usuarios pierden el '
         'plan el mismo día. Baja el número de usuarios y el MRR.\n'
         '- **Migración de catálogo** (línea punteada): cientos de usuarios pasan el mismo día del mismo plan A al '
-        'mismo plan B, por ejemplo cuando un plan se reemplaza por una versión nueva. Cambia el plan y el MRR, pero '
-        'no el número de usuarios. Se marcan las de 200 o más usuarios en el día.')
+        'mismo plan B. Cambia el plan y el MRR, pero no el número de usuarios. Se marcan las de 200 o más ' 
+        'usuarios en el día.')
     signed = lambda x: ('+' if x > 0 else '') + charts.fmt_int(x)  # noqa: E731
     tbl = pd.DataFrame({
         'Fecha': ev['date'].dt.strftime('%d/%m/%Y'), 'Tipo': ev['tipo'], 'Qué pasó': ev['detalle'],
