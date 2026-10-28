@@ -18,7 +18,7 @@ jupyter nbconvert --to notebook --execute prueba_big_data.ipynb
 - **[`requirements.txt`](requirements.txt):** congela el entorno de desarrollo completo, incluidos Jupyter y el dashboard.
 - **[`dashboard/requirements.txt`](dashboard/requirements.txt):** dependencias del dashboard publicado.
 
-El notebook se ejecuta de forma secuencial (~1,5 min, pico de memoria ~8 GB) y termina con una sección de validaciones (`assert`). Las tablas resultantes se exportan a `outputs/*.parquet` para el dashboard.
+El notebook se ejecuta de forma secuencial (~1,5–2 min, pico de memoria ~7,4 GB) y termina con una sección de validaciones (`assert`). Las tablas resultantes se exportan a `outputs/*.parquet` para el dashboard.
 
 | Actividad | Resultado (`pandas.DataFrame`) |
 |---|---|
@@ -26,7 +26,8 @@ El notebook se ejecuta de forma secuencial (~1,5 min, pico de memoria ~8 GB) y t
 | 2. Reactivaciones | `df_reactivaciones` |
 | 3. Upgrade / downgrade | `df_cambios_plan` |
 | 4. Métricas por cohorte | `df_metricas` (formato largo), `df_vida_plan`, `df_vida_categoria`, `df_retencion_nuevos` |
-| 5. Dashboard | [`dashboard/`](dashboard/), ver [Dashboard](#dashboard-actividad-5). El enlace publicado va en la sección 9 del notebook |
+| 5. Dashboard | [`dashboard/`](dashboard/), ver [Dashboard](#dashboard-actividad-5). El enlace publicado va en la celda *Dashboard*, al inicio del notebook |
+| 6. KDD (opcional) | `usuarios` (perfil de cada usuario), `df_perfiles_resumen`, `df_riesgo`, `df_riesgo_cupon`, `df_cox`, `df_mrr_en_juego`. Ver criterios 16 y 17 |
 
 ### Respuestas del equipo de Zapping
 Consultas hechas al equipo de Big Data sobre el enunciado:
@@ -45,6 +46,11 @@ Están en la celda de parámetros del notebook. Todos los umbrales que dependen 
 | `MASS_TUKEY_K` | 3 | Factor de la cerca de Tukey para volúmenes atípicos |
 | `MASS_CHURN_MIN_SHARE` | 0,5 | Fracción mínima de la base de un grupo para calificar una baja como masiva |
 | `TOP_N` | 8 | Categorías visibles en cohortes de alta cardinalidad (el resto va a "Otros") |
+| `KDD_MIN_DIAS_OBS` | 30 | Días observables mínimos para asignar un perfil (si no, "Observación corta") |
+| `KDD_K` · `KDD_ARI_MIN` | 3–8 · 0,9 | Número de perfiles evaluados y estabilidad mínima para aceptar uno |
+| `RIESGO_MESES` | 24 | Meses de antigüedad en la curva de riesgo |
+| `VENTANA_FACTOR` · `VENTANA_MIN_BAJAS` | 1,5 · 30 | Ventana de riesgo: riesgo > 1,5 × la mediana de la curva y ≥ 30 bajas |
+| `COX_CORTE_DIAS` | 90 | Corte de tramos para revisar riesgos proporcionales en el modelo de Cox |
 
 ## Dashboard (actividad 5)
 
@@ -63,8 +69,9 @@ Está hecho en Streamlit + Plotly. Las métricas que dependen de los filtros se 
 | Ingresos (4.2–4.3) | MRR mensual y ARPPU por dimensión, MRR en moneda local por país y MRR diario |
 | Engagement (4.4) | MAU contra suscriptores al cierre de mes, ratio MAU/suscriptores, consumo diario (fracción de activos con consumo en 30 días y horas medianas) y mapa de calor por dimensión |
 | Retención (4.1, 4.5, 4.6) | Composición por antigüedad, churn 1M/3M/6M por dimensión, curvas de Kaplan–Meier por plan o categoría y retención de usuarios nuevos por cohorte |
+| Perfiles y riesgo (6) | Tamaño, MRR y churn de cada perfil; mapa de calor de lo que distingue a cada uno; riesgo mensual de baja por antigüedad (total, segmento, cupón o perfil) con la ventana de riesgo; riesgo alrededor del fin del cupón; hazard ratios del modelo de Cox, y MRR en juego por perfil |
 
-**Filtros globales** (barra lateral, aplican a todas las páginas): período; país, segmento, categoría, plan base, canal de adquisición, cupón y antigüedad (combinables); *Excluir eventos masivos* (en el churn, muestra el churn orgánico).
+**Filtros globales** (barra lateral, aplican a todas las páginas): período; país, segmento, categoría, plan base, canal de adquisición, cupón, antigüedad y perfil (combinables); *Excluir eventos masivos* (en el churn, muestra el churn orgánico).
 
 **Criterios de diseño y lectura:**
 - **Misma definición que el notebook.** El dashboard reproduce las métricas sin redefinirlas: snapshot del último día del mes para métricas de stock, la misma regla de MAU, etc. Se verificó que MRR, ARPPU, MAU, ratio y activos diarios coinciden exactamente con `outputs/metricas.parquet` y `outputs/eventos_diarios.parquet`.
@@ -93,7 +100,7 @@ El equipo de Zapping autorizó publicar el dashboard. Está preparado para **Str
 2. Subir el proyecto a un repositorio de GitHub, **idealmente privado**. `outputs/user_day.parquet` tiene datos por usuario y día. El `.gitignore` ya excluye el parquet crudo, que el dashboard no necesita.
 3. En [share.streamlit.io](https://share.streamlit.io): *Create app* → repositorio, rama y archivo principal `dashboard/app.py`. En *Advanced settings*, elegir Python 3.12 o anterior (el dashboard no requiere 3.9.6, solo el notebook).
 4. Instala [`dashboard/requirements.txt`](dashboard/requirements.txt), que está junto a `app.py` y tiene solo las 6 dependencias del dashboard.
-5. Restringir el acceso a los correos del equipo (*Settings → Sharing*) y pegar el enlace en la sección 9 del notebook.
+5. Restringir el acceso a los correos del equipo (*Settings → Sharing*) y pegar el enlace en la celda *Dashboard*, al inicio del notebook.
 
 ---
 
@@ -255,6 +262,38 @@ Con la tolerancia anterior de 3 días, el churn orgánico era ~3 pp menor a 1M (
 - **Métricas de stock** (usuarios, MRR, ARPPU): se miden el **último día disponible de cada mes**. Septiembre es parcial (hasta el 07).
 - El MAU también se mide en el snapshot (criterio 9), porque `time_watched` ya resume los 30 días previos.
 
+### 16. Perfiles de usuario (KDD)
+- **Unidad:** una fila por usuario, con su comportamiento en la ventana. Los 309 usuarios con menos de 30 días observables (`KDD_MIN_DIAS_OBS`) quedan como *Observación corta* y no entran al clustering.
+- **Variables del clustering** (solo comportamiento): precio de lista mensual en USD (mediana), addons (media), fracción de días con consumo, horas de consumo en 30 días (mediana en los días con consumo), reactivaciones, días fuera (mediana), upgrades y downgrades individuales (sin migraciones masivas) y antigüedad **al inicio** de la ventana. Las de cola larga entran como `log(1 + x)`, y todas se estandarizan.
+- **Qué no entra y por qué:** país, segmento, categoría, canal y cupón solo describen los perfiles. Los resultados (si se fue, el MRR al cierre) tampoco entran. En una primera versión, la cobertura (días activos / observables) y la antigüedad al final de la ventana produjeron un grupo con 99% de bajas que solo repetía quién se fue; por eso se reemplazaron.
+- **Método y elección de k:** K-means con `n_init = 20`. Se elige el k con mayor silhouette entre los que tienen ARI medio ≥ 0,9 en 20 remuestreos bootstrap:
+
+  | k | 3 | 4 | 5 | 6 | **7** | 8 |
+  |---|---|---|---|---|---|---|
+  | Silhouette | 0,274 | 0,297 | 0,319 | 0,352 | **0,366** | 0,340 |
+  | ARI medio | 0,979 | 0,951 | 0,869 | 0,802 | **0,958** | 0,816 |
+- **Nombres:** salen de reglas sobre el centroide (en desviaciones estándar), no del número de grupo, así que no dependen del orden que asigna K-means. Si dos grupos quedan con el mismo nombre, el notebook se detiene. Con la misma semilla, el resultado es idéntico en el entorno de desarrollo y en uno limpio.
+- **Resultado:**
+
+  | Perfil | Usuarios | % MRR al cierre | Se fue | Rasgo |
+  |---|---|---|---|---|
+  | Activo establecido | 2.834 | 26% | 17% | Ve todos los días; ~10 meses de antigüedad al empezar 2026 |
+  | Pasivo | 2.806 | 6% | 13% | Casi no ve; 95% B2B; 58% perdió el servicio por fin de convenio |
+  | Recién llegado | 1.831 | 20% | **45%** | Llegó en 2026; 43% con cupón |
+  | Intermitente | 1.047 | 12% | 27% | 2 reactivaciones, 6 días fuera (medianas) |
+  | Subió de plan | 740 | 19% | 13% | Upgrade por decisión propia |
+  | Intensivo con addons | 218 | 7% | 17% | 206 h de consumo, plan de US$ 19 |
+  | Bajó de plan | 216 | 4% | 12% | Downgrade por decisión propia |
+- Los dos perfiles más chicos (2%) se mantienen: son comportamientos distintos y estables, no ruido.
+
+### 17. Riesgo de baja por antigüedad (KDD)
+- **Unidad:** cada periodo continuo de suscripción (como en el churn). La antigüedad se mide desde el inicio del periodo; si empieza en `DAY0`, desde la creación del primer plan, con entrada tardía (supuesto 10 del notebook).
+- **Evento y censura:** el evento es la baja. Se censuran los periodos activos en `DAYN` y los que terminan por fin de convenio. Quedan 5.110 bajas en 13.030 periodos.
+- **Riesgo mensual:** bajas del mes de antigüedad *m* / meses-persona de exposición en ese mes, con IC 95% de Poisson. **Ventana de riesgo:** riesgo > 1,5 × la mediana de la curva y ≥ 30 bajas. El mínimo de bajas descarta el mes 23, que supera el umbral con solo 20 bajas.
+- **Fin del cupón:** en las altas de 2026 con cupón, el mes relativo 0 es el primero a precio completo (`coupon_duration_months` meses después del alta).
+- **Modelo de Cox** (`lifelines`, entrada tardía, penalización L2 de 0,01). Covariables al inicio del periodo: segmento, país, cupón, precio de lista (log), pago de varios meses y perfil. `lifelines` no calcula los residuos de Schoenfeld con entrada tardía, así que los riesgos proporcionales se revisan ajustando el modelo en los primeros 90 días y después. El cupón y Perú cambian mucho entre tramos: su efecto depende de la antigüedad. Las variables con menos de 30 bajas no se estiman en un tramo. C-index: 0,785.
+- **MRR en juego:** para los activos al cierre, MRR × riesgo de su mes de antigüedad (curva total; después del mes 23, el promedio del segundo año).
+
 ---
 
 ## Validaciones automáticas
@@ -266,6 +305,7 @@ El notebook verifica con `assert`:
 5. Que toda reactivación `dentro_ventana` tenga último plan conocido y `gap_days >= 1`.
 6. Que primeras altas + reactivaciones = total de altas.
 7. Que el MAU no supere la base del snapshot y que `time_watched` sea único por usuario-día.
+8. KDD: que cada usuario tenga exactamente un perfil, que las bajas no superen a los usuarios en riesgo en ningún mes y que los hazard ratios sean finitos.
 
 ## Hallazgos relevantes para interpretar las métricas
 - **2026-06-12:** fin de los convenios de los partners 1351 y 2181 en EC (2.621 usuarios). Explica la caída de usuarios de julio (de 8.077 a 5.574) y el churn total de ~40–55%.
@@ -273,10 +313,16 @@ El notebook verifica con `assert`:
 - **Esencial ↔ Esencial Paramount** (partner 1271, junio → agosto): la ida y vuelta de 4 a 30 USD explica el salto de MRR y ARPPU en EC entre junio y agosto.
 - **Intermitencia:** 1 de cada 6 usuarios sale y vuelve dentro de la ventana, y la mayoría vuelve en 1 a 3 días. Más de la mitad de las bajas orgánicas (59%) vuelve dentro de la ventana.
 - **Engagement:** las horas medianas de consumo suben de ~40 a ~90 tras el 2026-06-12. Es consistente con un efecto de composición: salen los partners que terminaron convenio, y las categorías B2B tienen menos consumo (BUNDLE, HARDBUNDLE y RESELLER ~40–65% de MAU, contra ~96% en B2C).
+- **Ventanas de riesgo (KDD):** el riesgo mensual de baja es de 26% en los meses 0 y 1 de una suscripción, 14% en el mes 2 y menos de 4% después del primer año. Solo el 46% llega al mes 4. Al cierre, 2.362 usuarios activos (41% del MRR) están en los meses 0 a 5, y concentran el 75% de la pérdida esperada del mes siguiente (US$ 5.104 de ~US$ 6.800).
+- **El cupón posterga la baja (KDD):** el riesgo es menor durante el descuento (16% contra 28% sin cupón en el mes 0), pero sube a 36,5% en el primer mes a precio completo. En el modelo de Cox, el HR del cupón es 1,42 en los primeros 90 días y 1,09 después.
+- **Recién llegados (KDD):** el 45% se fue, y a igual antigüedad tienen 1,85 veces el riesgo de los activos establecidos. Pagar varios meses por adelantado reduce el riesgo (HR 0,62).
 - **PE:** la base es muy pequeña y desaparece en julio. Sus tasas por cohorte (p.ej. churn de 66–95%) se basan en muy pocos usuarios.
 
 ## Limitaciones conocidas
 - **Memoria:** el notebook llega a ~8 GB de RAM en su pico, por las copias intermedias de una tabla de 1,7M filas. En una máquina con menos memoria convendría leer solo las columnas necesarias y usar tipos `category`.
+
+- **KDD observacional:** los hazard ratios y la curva del cupón son asociaciones, no efectos causales; quien recibe un cupón puede ser distinto desde el principio. Una promoción de retención debería probarse con un grupo de control. El HR del perfil *Intermitente* (6,45) es en parte mecánico, porque el perfil se define por haber tenido varias bajas.
+- **Antigüedad previa a 2026:** se asume suscripción continua desde la creación del primer plan (supuesto 10). Si hubo saltos antes de 2026, la antigüedad de los usuarios antiguos está sobrestimada, y eso puede inflar el riesgo relativo de los recién llegados.
 
 ## Registro de cambios
 | Fecha | Cambio |
@@ -292,3 +338,4 @@ El notebook verifica con `assert`:
 | 2026-10-27 | **Respuestas de Zapping.** (1) Se valida el proxy de `created_user`. (2) `time_watched` es consumo de los últimos 30 días: el MAU pasa a medirse en el snapshot de fin de mes (enero: de 72,6% a 64,8%). (3) Se autoriza publicar el dashboard: se agregan `dashboard/requirements.txt`, la guía de publicación y la sección 9 del notebook para el enlace. (4) **Se elimina `GRACE_DAYS`**: todo salto es baja + reactivación, también en la vida media y el churn. Se quitan `es_tecnica`, `alta_real` y `baja_real`, y se agregan la sección *Intermitencia* y, en el dashboard, las bajas con y sin retorno. El churn orgánico 1M sube ~3 pp y la vida media de `hardbundle` baja de 219 a 112 días. |
 | 2026-10-27 | **Identidad visual de Zapping en el dashboard** (tema negro + Zapink, Poppins, jerarquía por opacidad, acentos de marca validados para daltonismo). Sin cambios en las métricas. |
 | 2026-10-27 | **Revisión del dashboard** (comentarios del autor). Pie numerado en todas las figuras y sin el subtítulo de fechas. Resumen: se explican los eventos masivos y su efecto. Flujo: sin granularidad diaria; totales de contrataciones y abandonos; nuevo desglose de planes contratados y cancelados, que reemplaza a *bajas orgánicas por dimensión*; rayado en las bajas sin retorno; addons por nombre. Reactivaciones: el Sankey se reemplaza por barras mismo plan / otro plan. Cambios: definición de cada tipo y leyenda del Sankey. Engagement: *suscriptores* en vez de *activos* y corrección del hover del mapa de calor. Sin cambios en las métricas. |
+| 2026-10-27 | **Actividad 6 (KDD).** Sección 7 del notebook: perfiles de usuario (K-means, k = 7 elegido por silhouette y estabilidad bootstrap), riesgo mensual de baja por antigüedad con ventanas de riesgo, efecto del fin del cupón, modelo de Cox y MRR en juego. Supuesto 10 y validación 8 nuevos. Se agrega `scikit-learn==1.6.1` a `requirements_entrega.txt` (verificado en un entorno limpio). Dashboard: página *Perfiles y riesgo* y *Perfil* como filtro y dimensión. Validaciones, exportación pasan a ser las secciones 8 y 9. |

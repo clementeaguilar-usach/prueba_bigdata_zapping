@@ -16,6 +16,7 @@ import streamlit as st
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / 'outputs'
 USER_DAY = (OUT / 'user_day.parquet').as_posix()
+PERFILES = OUT / 'perfiles.parquet'
 
 DIMS: Dict[str, str] = {
     'country_iso': 'País',
@@ -25,6 +26,7 @@ DIMS: Dict[str, str] = {
     'acquisition_grp': 'Canal de adquisición',
     'coupon_label': 'Cupón',
     'tenure_bucket': 'Antigüedad',
+    'perfil': 'Perfil',
 }
 TENURE_ORDER = ['<1M', '1-3M', '3-6M', '6-12M', '1-2A', '>2A']
 MONTHS_ES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
@@ -47,7 +49,12 @@ def month_label(month: str) -> str:
 @st.cache_resource
 def _connection() -> duckdb.DuckDBPyConnection:
     con = duckdb.connect()
-    con.execute(f"CREATE VIEW ud AS SELECT * FROM read_parquet('{USER_DAY}')")
+    if PERFILES.exists():
+        # El perfil (actividad 6) es un atributo fijo del usuario: se agrega como una dimensión más
+        con.execute(f"CREATE VIEW ud AS SELECT u.*, coalesce(p.perfil, 'Sin perfil') AS perfil "
+                    f"FROM read_parquet('{USER_DAY}') u LEFT JOIN read_parquet('{PERFILES.as_posix()}') p USING (id)")
+    else:
+        con.execute(f"CREATE VIEW ud AS SELECT *, 'Sin perfil' AS perfil FROM read_parquet('{USER_DAY}')")
     return con
 
 
@@ -80,6 +87,8 @@ def dim_values(dim: str) -> List[str]:
     """
     if dim == 'tenure_bucket':
         return TENURE_ORDER
+    if dim == 'perfil' and PERFILES.exists():
+        return perfiles_resumen().index.tolist()  # orden del notebook: por tamaño, 'Observación corta' al final
     vals = query(f'SELECT {dim} AS v, count(DISTINCT id) AS n FROM ud GROUP BY 1 ORDER BY n DESC')['v'].tolist()
     vals = [v for v in vals if v is not None]
     return [v for v in vals if v != 'Otros'] + (['Otros'] if 'Otros' in vals else [])
@@ -244,6 +253,31 @@ def _top_pairs(df: pd.DataFrame, cols: List[str], n: int = 2) -> str:
     g = df.groupby(cols).size().sort_values(ascending=False).head(n)
     return ', '.join(f"{' → '.join(map(str, k)) if isinstance(k, tuple) else k} ({v:,})".replace(',', '.')
                      for k, v in g.items())
+
+
+@st.cache_data(show_spinner=False)
+def perfiles_resumen() -> pd.DataFrame:
+    return pd.read_parquet(OUT / 'perfiles_resumen.parquet')
+
+
+@st.cache_data(show_spinner=False)
+def riesgo_antiguedad() -> pd.DataFrame:
+    return pd.read_parquet(OUT / 'riesgo_antiguedad.parquet')
+
+
+@st.cache_data(show_spinner=False)
+def riesgo_cupon() -> pd.DataFrame:
+    return pd.read_parquet(OUT / 'riesgo_cupon.parquet').reset_index()
+
+
+@st.cache_data(show_spinner=False)
+def cox() -> pd.DataFrame:
+    return pd.read_parquet(OUT / 'cox.parquet')
+
+
+@st.cache_data(show_spinner=False)
+def mrr_en_juego() -> pd.DataFrame:
+    return pd.read_parquet(OUT / 'mrr_en_juego.parquet')
 
 
 @st.cache_data(show_spinner=False)

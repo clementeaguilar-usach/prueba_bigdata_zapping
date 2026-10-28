@@ -65,6 +65,7 @@ pages = [
     st.Page('views/ingresos.py', title='Ingresos', icon=':material/payments:'),
     st.Page('views/engagement.py', title='Engagement', icon=':material/play_circle:'),
     st.Page('views/retencion.py', title='Retención', icon=':material/favorite:'),
+    st.Page('views/perfiles.py', title='Perfiles y riesgo', icon=':material/groups:'),
 ]
 charts.reset_figures()
 st.navigation(pages).run()

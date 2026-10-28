@@ -35,7 +35,9 @@ else:
 st.subheader('Tasa de churn (4.6)')
 c1, c2 = st.columns([1, 2])
 horizonte = c1.segmented_control('Horizonte', ['1M', '3M', '6M'], default='1M', key='ret_hor') or '1M'
-dim = c2.selectbox('Agrupar por', ['total'] + list(data.DIMS),
+# El churn está precalculado en el notebook por dimensión; el perfil (actividad 6) no está entre ellas
+churn_dims = [d for d in data.DIMS if d in set(data.metricas()['dimension'])]
+dim = c2.selectbox('Agrupar por', ['total'] + churn_dims,
                    format_func=lambda d: 'Total' if d == 'total' else data.DIMS[d], key='ret_dim')
 st.caption(('**Churn orgánico** (sin bajas masivas por fin de convenio). ' if f.excluir_masivos else
             '**Churn total** (incluye bajas masivas; actívalo en "Excluir eventos masivos" para el orgánico). ')
