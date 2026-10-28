@@ -23,9 +23,7 @@ total = riesgo[riesgo['grupo'] == 'Total'].set_index('mes')
 ventana = total.index[total['ventana']].tolist()
 
 st.markdown('**Quiénes son** los usuarios (perfiles por clustering de su comportamiento) y **cuándo se van** (riesgo '
-            'mensual de baja según la antigüedad de la suscripción). Todo está precalculado en la sección 7 del '
-            'notebook sobre la base completa: los filtros laterales no aplican en esta página, pero el *Perfil* sí '
-            'está disponible como filtro y como "Agrupar por" en las demás.')
+            'mensual de baja según la antigüedad de la suscripción). ')
 
 en_v = juego[juego['en_ventana']]
 cols = st.columns(4)
@@ -181,6 +179,5 @@ st.dataframe(tabla[['perfil', 'usuarios', 'mrr', 'bajas_esperadas_mes', 'mrr_esp
     'bajas_esperadas_mes': 'Bajas esperadas el próximo mes', 'mrr_esperado_perdido_mes': 'MRR esperado perdido (USD)'}),
     hide_index=True, width='stretch')
 charts.figure_caption('Usuarios activos al 07-09 cuya suscripción está en la ventana de riesgo, por perfil. La '
-                      'pérdida esperada multiplica su MRR por el riesgo de su mes de antigüedad (curva total): es el '
-                      'objetivo natural de una promoción de retención. Ver las recomendaciones en la sección 7 del '
-                      'notebook.')
+                      'pérdida esperada multiplica su MRR por el riesgo de su mes de antigüedad (curva total), '
+                      'lo que es el objetivo natural de una promoción de retención.')
