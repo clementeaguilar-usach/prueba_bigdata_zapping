@@ -29,13 +29,6 @@ El notebook se ejecuta de forma secuencial (~1,5–2 min, pico de memoria ~7,4 G
 | 5. Dashboard | [`dashboard/`](dashboard/), ver [Dashboard](#dashboard-actividad-5). El enlace publicado va en la celda *Dashboard*, al inicio del notebook |
 | 6. KDD (opcional) | `usuarios` (perfil de cada usuario), `df_perfiles_resumen`, `df_riesgo`, `df_riesgo_cupon`, `df_cox`, `df_mrr_en_juego`. Ver criterios 16 y 17 |
 
-### Respuestas del equipo de Zapping
-Consultas hechas al equipo de Big Data sobre el enunciado:
-1. **Proxy de `created_user`:** se valida el uso de la fecha mínima de `created` de cada usuario (criterio 5).
-2. **`time_watched`:** son los segundos totales de consumo de los **últimos 30 días**. Cambia la definición del MAU (criterio 9).
-3. **Dashboard:** puede publicarse y compartirse con el equipo con un enlace en el notebook (ver [Publicación](#publicación)).
-4. **Intermitencia:** salir y volver (alta → baja → alta) es natural en el rubro y debe mostrarse. Se elimina `GRACE_DAYS` (criterio 2).
-
 ### Parámetros
 
 Están en la celda de parámetros del notebook. Todos los umbrales que dependen de los datos se calculan en tiempo de ejecución.
